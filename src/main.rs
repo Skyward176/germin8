@@ -1,16 +1,17 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::{Command, Stdio};
-
+use std::path::PathBuf;
 
 fn run (cmd: &str) { // run a given command
     println!("Running {}", cmd);
-    let status = Command::new("sh")
+    let status = Command::new("zsh")
         .arg("-c")
         .arg(cmd)
         .status()
         .expect("Failed to execute command");
+
 
     if !status.success() {
         eprintln!("Command failed: {}", cmd);
@@ -19,15 +20,18 @@ fn run (cmd: &str) { // run a given command
 }
 
 fn install_brew(){
-    run("which brew || sh -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"");
-    
+    run("which brew || bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"");
+    run("echo >> /home/bmartinez/.zshrc");
+    run("echo 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"' >> /home/bmartinez/.zshrc");
+    run("eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\"");
+    run("sudo apt-get install build-essential");
 }
 fn install_dependencies(os: &str){
     match os {
         "linux" => {
             run("sudo apt update");
             run("sudo apt install -y git zsh tmux alacritty rbenv");
-            run("brew install neovim");
+            run("/home/linuxbrew/.linuxbrew/bin/brew install neovim");
         }
         "macos" => {
             run("brew install git zsh neovim tmux rbenv");
@@ -41,7 +45,7 @@ fn install_dependencies(os: &str){
 }
 fn install_ohmyzsh(){
     if env::var_os("ZSH").is_none() {
-        run("sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"");
+        run("zsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"");
     } else {
         println!("OhMyZSH already installed!!")
     }
@@ -64,8 +68,16 @@ fn install_nerdfont() {
 
 fn install_starship() {
     run("brew install starship"); // with starship i also want vi mode
-    run ("git clone https://github.com/jeffreytse/zsh-vi-mode \
-  $ZSH_CUSTOM/plugins/zsh-vi-mode")
+
+    let home = env::var("HOME").expect("HOME not set");
+    let zshpath = PathBuf::from(home).join("/.oh-my-zsh/custom/plugins/zsh-vi-mode");
+    println!("{}",zshpath.display());
+    if Path::new(&zshpath).exists() {
+        println!("PATH ALREADY EXISTS");
+    } else {
+        run ("git clone https://github.com/jeffreytse/zsh-vi-mode \
+      $HOME/.oh-my-zsh/custom/plugins/zsh-vi-mode");
+    }
 }
 
 
@@ -84,7 +96,7 @@ fn load_dotfiles(repo_url: &str) {
         
         run(&format!("git clone --bare {} {}", repo_url, cfg_dir.display()));
 
-        let checkout = Command::new("sh") // run checkout (alias is not defined yet)
+        let checkout = Command::new("zsh") // run checkout (alias is not defined yet)
            .arg("-c")
            .arg("git --git-dir=$HOME/.cfg/ --work-tree=$HOME checkout")
            .stdout(Stdio::piped())
